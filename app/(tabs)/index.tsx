@@ -1,13 +1,15 @@
-import { Link } from "expo-router";
-import { Text, View } from "react-native";
+import { useAuth } from "@clerk/clerk-expo";
+import { Text, TouchableOpacity, View } from "react-native";
 import { styles } from '../../styles/auth.styles';
 
 export default function Index() {
+
+  const {signOut} = useAuth();
   return (
     <View
       style={styles.container}
     >
-      <Text style={styles.title}>First app.</Text>
+      {/* <Text style={styles.title}>First app.</Text> */}
 
       {/* <TouchableOpacity onPress={() => alert("Touched")}>
         <Text>Press me</Text>
@@ -27,13 +29,20 @@ export default function Index() {
       </Image> */}
 
 
-      <Link href={"/notifications"}>
+      {/* <Link href={"/notifications"}>
       <Text>Visit Notification page</Text>
       </Link>
 
       <Link href={"/profile"}>
       <Text>Visit Profile page</Text>
-      </Link>
+      </Link> */}
+
+      <TouchableOpacity onPress={() => signOut()}>
+         <Text style={{color: "white"}}>
+          Sign out
+         </Text>
+
+      </TouchableOpacity>
     </View>
   );
 }
