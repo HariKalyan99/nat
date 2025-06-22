@@ -8,12 +8,13 @@ import { useState } from "react";
 import {
     FlatList,
     KeyboardAvoidingView,
-    Modal,
     Platform,
+    Text,
     TextInput,
     TouchableOpacity,
     View,
 } from "react-native";
+import Modal from "react-native-modal";
 import Comment from "./Comment";
 import Loader from "./Loader";
 
@@ -31,17 +32,29 @@ export default function CommentsModal({
   onCommentsAdded,
 }: CommentsModal) {
   const [newComment, setNewComment] = useState("");
-
   const comments = useQuery(api.comments.getComments, { postId });
   const addComments = useMutation(api.comments.addComment);
 
-  const handleAddComment = async () => {};
+  const handleAddComment = async () => {
+    if (!newComment.trim()) return;
+    try {
+      await addComments({ postId, content: newComment.trim() });
+      setNewComment("");
+      onCommentsAdded();
+    } catch (error) {
+      console.log("Error adding comments: ", error);
+    }
+  };
+
   return (
     <Modal
-      visible={visible}
-      animationType="slide"
-      transparent={true}
-      onRequestClose={onClose}
+      isVisible={visible}
+      onBackdropPress={onClose}
+      onBackButtonPress={onClose}
+      style={{ margin: 0 }}
+      animationIn="slideInUp"
+      animationOut="slideOutDown"
+      avoidKeyboard
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -60,8 +73,8 @@ export default function CommentsModal({
         ) : (
           <FlatList
             data={comments}
-            keyExtractor={(item) => item._id}
-            renderItem={({ item }) => <Comment x={item} />}
+            keyExtractor={(item) => String(item._id)}
+            renderItem={({ item }) => <Comment comment={item} />}
             contentContainerStyle={styles.commentsList}
           />
         )}
