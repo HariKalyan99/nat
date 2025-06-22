@@ -7,7 +7,7 @@ export const generateUploadUrl = mutation(async (ctx) => {
   return await ctx.storage.generateUploadUrl();
 });
 
-export const createPosts = mutation({
+export const createPost = mutation({
   args: {
     caption: v.optional(v.string()),
     storageId: v.id("_storage"),

@@ -21,7 +21,7 @@ import { api } from "@/convex/_generated/api";
 import { useMutation } from "convex/react";
 import { Image } from "expo-image";
 
-export default function createScreen() {
+export default function CreateScreen() {
   const router = useRouter();
 
   const { user } = useUser();
@@ -41,7 +41,7 @@ export default function createScreen() {
   };
 
   const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
-  const createPosts = useMutation(api.posts.createPosts);
+  const createPost = useMutation(api.posts.createPost);
 
   const handleShare = async () => {
     if (!selectedImage) return;
@@ -60,10 +60,11 @@ export default function createScreen() {
         }
       );
 
+
       if (uploadResult.status !== 200) throw new Error("Upload failed");
 
       const { storageId } = JSON.parse(uploadResult.body);
-      await createPosts({ storageId, caption });
+      await createPost({ storageId, caption });
 
       router.push("/(tabs)");
     } catch (error) {
