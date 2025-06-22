@@ -1,50 +1,61 @@
+import Loader from "@/components/Loader";
+import Post from "@/components/Post";
+import Story from "@/components/Story";
+import { STORIES } from "@/constants/mock-data";
+import { COLORS } from "@/constants/theme";
+import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/clerk-expo";
-import { Text, TouchableOpacity, View } from "react-native";
-import { styles } from '../../styles/auth.styles';
+import { Ionicons } from "@expo/vector-icons";
+import { useQuery } from "convex/react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { styles } from "../../styles/feed.styles";
 
 export default function Index() {
+  const { signOut } = useAuth();
 
-  const {signOut} = useAuth();
+  const posts = useQuery(api.posts.getFeedPosts);
+
+  if (posts === undefined) return <Loader />;
+
+  if (posts?.length === 0) return <NoPostsFound />;
   return (
-    <View
-      style={styles.container}
-    >
-      {/* <Text style={styles.title}>First app.</Text> */}
+    <View style={styles.container}>
+      {/* header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>nat</Text>
 
-      {/* <TouchableOpacity onPress={() => alert("Touched")}>
-        <Text>Press me</Text>
-      </TouchableOpacity>
+        <TouchableOpacity onPress={() => signOut()}>
+          <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
+        </TouchableOpacity>
+      </View>
 
-      <Pressable onPress={() => alert("You have touched")}>
+      <ScrollView showsVerticalScrollIndicator={false}>
+        {/* stories */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.storiesContainer}
+        >
+          {STORIES.map((story) => (
+            <Story key={story.id} story={story} />
+          ))}
+        </ScrollView>
 
-        <Text>Press me now</Text>
-
-      </Pressable>
-
-      <Image source={require("../assets/images/icon.png")} style={{width: 100, height: 100}}>
-
-      </Image>
-      <Image source={{uri: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQhM6ZIOMUPj_K76n8DqAYAFDI8MLQUzcij5Q&s"}}  style={{width: 100, height: 100, resizeMode: 'cover'}}>
-
-      </Image> */}
-
-
-      {/* <Link href={"/notifications"}>
-      <Text>Visit Notification page</Text>
-      </Link>
-
-      <Link href={"/profile"}>
-      <Text>Visit Profile page</Text>
-      </Link> */}
-
-      <TouchableOpacity onPress={() => signOut()}>
-         <Text style={{color: "white"}}>
-          Sign out
-         </Text>
-
-      </TouchableOpacity>
+        {posts.map((post) => <Post key={post._id} post={post} />)}
+      </ScrollView>
     </View>
   );
 }
 
-
+const NoPostsFound = () => {
+  <View
+    style={{
+      flex: 1,
+      backgroundColor: COLORS.background,
+      justifyContent: "center",
+      alignItems: "center",
+    }}
+  >
+    <Text style={{ fontSize: 20, color: COLORS.primary }}>No posts yet!</Text>
+  </View>;
+};
