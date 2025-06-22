@@ -65,6 +65,9 @@ export default function CreateScreen() {
       const { storageId } = JSON.parse(uploadResult.body);
       await createPost({ storageId, caption });
 
+      setSelectedImage(null);
+      setCaption("");
+
       router.push("/(tabs)");
     } catch (error) {
       console.log("Error while sharing the post");
@@ -137,11 +140,10 @@ export default function CreateScreen() {
         </View>
 
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
           bounces={false}
           keyboardShouldPersistTaps="handled"
           contentOffset={{ x: 0, y: 100 }}
-          contentContainerStyle={{ paddingBottom: 20 }}
+          contentContainerStyle={{ paddingBottom: 20, ...styles.scrollContent }}
         >
           <View style={[styles.content, isSharing && styles.contentDisabled]}>
             <View style={styles.imageSection}>
