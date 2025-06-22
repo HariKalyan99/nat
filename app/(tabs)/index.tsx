@@ -67,7 +67,7 @@ const StoriesSection = () => {
 // {/* stories */}
 
 const NoPostsFound = () => {
-  <View
+  return (<View
     style={{
       flex: 1,
       backgroundColor: COLORS.background,
@@ -76,5 +76,5 @@ const NoPostsFound = () => {
     }}
   >
     <Text style={{ fontSize: 20, color: COLORS.primary }}>No posts yet!</Text>
-  </View>;
+  </View>);
 };
