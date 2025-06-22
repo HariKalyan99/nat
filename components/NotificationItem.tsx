@@ -33,7 +33,7 @@ export default function NotificationItem({ notification }: any) {
         </Link>
 
         <View style={styles.notificationInfo}>
-          <Link href={"/notifications"}>
+          <Link href={`/user/${notification.sender._id}`} asChild>
             <TouchableOpacity>
               <Text style={styles.username}>
                 {notification.sender.username}
