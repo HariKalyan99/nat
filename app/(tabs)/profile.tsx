@@ -129,6 +129,7 @@ export default function ProfileScreen() {
               />
             </TouchableOpacity>
           )}
+          keyExtractor={(item) => item._id}
         />
       </ScrollView>
 

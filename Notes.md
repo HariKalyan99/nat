@@ -359,3 +359,6 @@ Reanimated works perfectly.
 Great for building modern smooth UIs, e.g., swipe cards, pull to refresh, parallax headers, etc.
 
 ## check: https://docs.swmansion.com/react-native-reanimated/
+
+
+# expo-navigation-bar for android navigation to have black color or any color you wish 

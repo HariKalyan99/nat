@@ -42,7 +42,7 @@ export default defineSchema({
   })
     .index("by_follower", ["followerId"])
     .index("by_following", ["followingId"])
-    .index("by_both", ["followingId", "followerId"]),
+    .index("by_both", ["followerId", "followingId"]),
 
   notifications: defineTable({
     receiverId: v.id("users"),
