@@ -44,16 +44,18 @@ export const getFeedPosts = query({
     const posts = await ctx.db.query("posts").order("desc").collect();
 
     if (posts.length === 0) return [];
-
     const postsWithInfo = await Promise.all(
       posts.map(async (post) => {
+        
         const postAuthor = await ctx.db.get(post.userId);
+
         const like = await ctx.db
           .query("likes")
           .withIndex("by_user_and_post", (q) =>
             q.eq("userId", currentUser._id).eq("postId", post._id)
           )
           .first();
+          
         const bookmarks = await ctx.db
           .query("bookmarks")
           .withIndex("by_user_and_post", (q) =>

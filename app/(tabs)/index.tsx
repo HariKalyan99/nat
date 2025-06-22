@@ -29,7 +29,8 @@ export default function Index() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView showsVerticalScrollIndicator={false}
+      contentContainerStyle={{paddingBottom: 60}}>
         {/* stories */}
         <ScrollView
           horizontal
@@ -41,7 +42,7 @@ export default function Index() {
           ))}
         </ScrollView>
 
-        {posts.map((post) => <Post key={post._id} post={post} />)}
+        {posts?.map((post) => <Post key={post._id} post={post} />)}
       </ScrollView>
     </View>
   );

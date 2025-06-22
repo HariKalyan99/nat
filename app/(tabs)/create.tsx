@@ -60,7 +60,6 @@ export default function CreateScreen() {
         }
       );
 
-
       if (uploadResult.status !== 200) throw new Error("Upload failed");
 
       const { storageId } = JSON.parse(uploadResult.body);
@@ -142,6 +141,7 @@ export default function CreateScreen() {
           bounces={false}
           keyboardShouldPersistTaps="handled"
           contentOffset={{ x: 0, y: 100 }}
+          contentContainerStyle={{ paddingBottom: 20 }}
         >
           <View style={[styles.content, isSharing && styles.contentDisabled]}>
             <View style={styles.imageSection}>
