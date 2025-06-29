@@ -6,57 +6,130 @@ import { COLORS } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import { useQuery } from "convex/react";
-import { useState } from "react";
-import { FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useConvex } from "convex/react";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { styles } from "../../styles/feed.styles";
 
 export default function Index() {
   const { signOut } = useAuth();
+  const convex = useConvex();
 
-  const [refreshing, setRefreshing] = useState(false)
+  const [refreshing, setRefreshing] = useState(false);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  const FEED_CACHE_KEY = "@feed_posts";
+  const FEED_TIMESTAMP_KEY = "@feed_posts_timestamp";
+  const CACHE_DURATION_MS = 60 * 60 * 1000; 
 
-  const posts = useQuery(api.posts.getFeedPosts);
+  useEffect(() => {
+    loadPostsOnStartup();
+  }, []);
 
-  if (posts === undefined) return <Loader />;
+  useEffect(() => {
+    // Setup interval for auto-refresh every 1 hour
+    const interval = setInterval(async () => {
+      console.log("🔁 Auto-fetching feed after 1 hour...");
 
-  if (posts?.length === 0) return <NoPostsFound />;
+      try {
+        const fresh = await convex.query(api.posts.getFeedPosts);
+        if (fresh) {
+          setPosts(fresh);
+          await AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(fresh));
+          await AsyncStorage.setItem(FEED_TIMESTAMP_KEY, Date.now().toString());
+          console.log("✅ Auto-refresh complete.");
+        }
+      } catch (err) {
+        console.error("Auto-refresh error:", err);
+      }
+    }, CACHE_DURATION_MS); // 1 hour
 
-  const onRefresh = () => {
+    return () => clearInterval(interval); // Cleanup on unmount
+  }, []);
+
+
+  const loadPostsOnStartup = async () => {
+    try {
+      const lastFetched = await AsyncStorage.getItem("@last_fetched_time");
+      const now = Date.now();
+      const ONE_HOUR = 60 * 60 * 1000;
+
+      if (lastFetched && now - parseInt(lastFetched) < ONE_HOUR) {
+        const cached = await AsyncStorage.getItem("@feed_posts");
+        if (cached) {
+          setPosts(JSON.parse(cached));
+        }
+        setLoading(false);
+        return;
+      }
+
+      // If no cache or older than 1 hour, fetch fresh
+      const fresh = await convex.query(api.posts.getFeedPosts);
+      if (fresh) {
+        setPosts(fresh);
+        await AsyncStorage.setItem("@feed_posts", JSON.stringify(fresh));
+        await AsyncStorage.setItem("@last_fetched_time", now.toString());
+      }
+      setLoading(false);
+    } catch (err) {
+      console.error("Error loading posts:", err);
+      setLoading(false);
+    }
+  };
+
+  const onRefresh = async () => {
     setRefreshing(true);
-    setTimeout(() => {
-      setRefreshing(false)
-    }, 1000)
-  }
+    try {
+      const fresh = await convex.query(api.posts.getFeedPosts);
+      if (fresh) {
+        setPosts(fresh);
+        await AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(fresh));
+        await AsyncStorage.setItem(FEED_TIMESTAMP_KEY, Date.now().toString());
+        console.log("Manually refreshed feed.");
+      }
+    } catch (err) {
+      console.error("Refresh error:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  if (loading) return <Loader />;
+
+  if (posts.length === 0) return <NoPostsFound />;
+
   return (
     <View style={styles.container}>
       {/* header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>nat</Text>
-
         <TouchableOpacity onPress={() => signOut()}>
           <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
         </TouchableOpacity>
       </View>
 
-
-      
-
-      {/* <ScrollView showsVerticalScrollIndicator={false}
-      contentContainerStyle={{paddingBottom: 60}}>
-        
-
-        {posts?.map((post) => <Post key={post._id} post={post} />)}
-      </ScrollView> */}
       <FlatList
         data={posts}
         renderItem={({ item }) => <Post post={item} />}
-        keyExtractor={(items) => items._id}
+        keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60 }}
         ListHeaderComponent={<StoriesSection />}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary}/>
+          <RefreshControl
+            refreshing={refreshing}
+            // onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
         }
       />
     </View>
@@ -77,17 +150,17 @@ const StoriesSection = () => {
   );
 };
 
-// {/* stories */}
-
 const NoPostsFound = () => {
-  return (<View
-    style={{
-      flex: 1,
-      backgroundColor: COLORS.background,
-      justifyContent: "center",
-      alignItems: "center",
-    }}
-  >
-    <Text style={{ fontSize: 20, color: COLORS.primary }}>No posts yet!</Text>
-  </View>);
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.background,
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <Text style={{ fontSize: 20, color: COLORS.primary }}>No posts yet!</Text>
+    </View>
+  );
 };
