@@ -4,6 +4,7 @@ import Story from "@/components/Story";
 import { STORIES } from "@/constants/mock-data";
 import { COLORS } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
+import { getItem, setItem } from "@/utils/storage";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -26,10 +27,10 @@ export default function Index() {
   const [refreshing, setRefreshing] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   const FEED_CACHE_KEY = "@feed_posts";
   const FEED_TIMESTAMP_KEY = "@feed_posts_timestamp";
-  const CACHE_DURATION_MS = 60 * 60 * 1000; 
+  const CACHE_DURATION_MS = 60 * 60 * 1000;
 
   useEffect(() => {
     loadPostsOnStartup();
@@ -56,28 +57,25 @@ export default function Index() {
     return () => clearInterval(interval); // Cleanup on unmount
   }, []);
 
-
   const loadPostsOnStartup = async () => {
     try {
-      const lastFetched = await AsyncStorage.getItem("@last_fetched_time");
+      const lastFetched = getItem(FEED_TIMESTAMP_KEY);
       const now = Date.now();
-      const ONE_HOUR = 60 * 60 * 1000;
 
-      if (lastFetched && now - parseInt(lastFetched) < ONE_HOUR) {
-        const cached = await AsyncStorage.getItem("@feed_posts");
+      if (lastFetched && now - lastFetched < CACHE_DURATION_MS) {
+        const cached = getItem(FEED_CACHE_KEY);
         if (cached) {
-          setPosts(JSON.parse(cached));
+          setPosts(cached);
+          setLoading(false);
+          return;
         }
-        setLoading(false);
-        return;
       }
 
-      // If no cache or older than 1 hour, fetch fresh
       const fresh = await convex.query(api.posts.getFeedPosts);
       if (fresh) {
         setPosts(fresh);
-        await AsyncStorage.setItem("@feed_posts", JSON.stringify(fresh));
-        await AsyncStorage.setItem("@last_fetched_time", now.toString());
+        setItem(FEED_CACHE_KEY, fresh);
+        setItem(FEED_TIMESTAMP_KEY, now);
       }
       setLoading(false);
     } catch (err) {
@@ -92,8 +90,8 @@ export default function Index() {
       const fresh = await convex.query(api.posts.getFeedPosts);
       if (fresh) {
         setPosts(fresh);
-        await AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(fresh));
-        await AsyncStorage.setItem(FEED_TIMESTAMP_KEY, Date.now().toString());
+        setItem(FEED_CACHE_KEY, fresh);
+        setItem(FEED_TIMESTAMP_KEY, Date.now());
         console.log("Manually refreshed feed.");
       }
     } catch (err) {
