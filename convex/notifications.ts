@@ -7,7 +7,7 @@ export const getNotifications = query({
 
     const notifications = await ctx.db
       .query("notifications")
-      .withIndex("by_receiver", (q) => q.eq("receiverId", currentUser._id))
+      .withIndex("by_receiver", (q) => q.eq("receiverId", currentUser?._id))
       .order("desc")
       .collect();
 
