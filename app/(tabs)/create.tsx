@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as FileSystem from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -18,33 +18,56 @@ import {
 } from "react-native";
 
 import { api } from "@/convex/_generated/api";
+import { useFocusEffect } from "@react-navigation/native";
 import { useMutation } from "convex/react";
 import { Image } from "expo-image";
+import { VideoView, useVideoPlayer } from "expo-video";
 
 export default function CreateScreen() {
   const router = useRouter();
-
+  const isPlayerReleased = useRef(false);
   const { user } = useUser();
   const [caption, setCaption] = useState("");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [isSharing, setIsSharing] = useState(false);
 
-  const pickImage = async () => {
+  const player = useVideoPlayer(selectedVideo ?? null, (p) => {
+    p.loop = true;
+    p.play();
+  });
+
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        try {
+          if (player && !isPlayerReleased.current) {
+            player.pause?.();
+            player.replaceAsync?.(null);
+            isPlayerReleased.current = true; // mark as released
+          }
+        } catch (err) {
+          console.log("Cleanup video error (ignored):", err);
+        }
+      };
+    }, [player])
+  );
+
+  const pickVideo = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: "images",
+      mediaTypes: ["videos"],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
     });
 
-    if (!result.canceled) setSelectedImage(result.assets[0].uri);
+    if (!result.canceled) setSelectedVideo(result.assets[0].uri);
   };
 
   const generateUploadUrl = useMutation(api.posts.generateUploadUrl);
   const createPost = useMutation(api.posts.createPost);
 
   const handleShare = async () => {
-    if (!selectedImage) return;
+    if (!selectedVideo) return;
 
     try {
       setIsSharing(true);
@@ -52,11 +75,11 @@ export default function CreateScreen() {
 
       const uploadResult = await FileSystem.uploadAsync(
         uploadUrl,
-        selectedImage,
+        selectedVideo,
         {
           httpMethod: "POST",
           uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-          mimeType: "image/jpeg",
+          mimeType: "video/mp4",
         }
       );
 
@@ -65,7 +88,7 @@ export default function CreateScreen() {
       const { storageId } = JSON.parse(uploadResult.body);
       await createPost({ storageId, caption });
 
-      setSelectedImage(null);
+      setSelectedVideo(null);
       setCaption("");
 
       router.push("/(tabs)");
@@ -76,7 +99,7 @@ export default function CreateScreen() {
     }
   };
 
-  if (!selectedImage) {
+  if (!selectedVideo) {
     return (
       <View style={styles.container}>
         <View style={styles.header}>
@@ -90,10 +113,10 @@ export default function CreateScreen() {
 
         <TouchableOpacity
           style={styles.emptyImageContainer}
-          onPress={pickImage}
+          onPress={pickVideo}
         >
-          <Ionicons name="image-outline" size={48} color={COLORS.grey} />
-          <Text style={styles.emptyImageText}>Tap to select an image</Text>
+          <Ionicons name="videocam-outline" size={48} color={COLORS.grey} />
+          <Text style={styles.emptyImageText}>Tap to select a video</Text>
         </TouchableOpacity>
       </View>
     );
@@ -109,7 +132,7 @@ export default function CreateScreen() {
         <View style={styles.header}>
           <TouchableOpacity
             onPress={() => {
-              setSelectedImage(null);
+              setSelectedVideo(null);
               setCaption("");
             }}
             disabled={isSharing}
@@ -128,7 +151,7 @@ export default function CreateScreen() {
               styles.shareButton,
               isSharing && styles.shareButtonDisabled,
             ]}
-            disabled={isSharing || !selectedImage}
+            disabled={isSharing || !selectedVideo}
             onPress={handleShare}
           >
             {isSharing ? (
@@ -147,16 +170,18 @@ export default function CreateScreen() {
         >
           <View style={[styles.content, isSharing && styles.contentDisabled]}>
             <View style={styles.imageSection}>
-              <Image
-                source={selectedImage}
-                style={styles.previewImage}
+              <VideoView
+                style={{ width: "100%", height: 300 }}
+                player={player}
+                allowsFullscreen
+                allowsPictureInPicture
+                nativeControls={true}
                 contentFit="cover"
-                transition={200}
               />
               <TouchableOpacity
                 style={styles.changeImageButton}
                 disabled={isSharing}
-                onPress={pickImage}
+                onPress={pickVideo}
               >
                 <Ionicons name="image-outline" size={20} color={COLORS.white} />
                 <Text style={styles.changeImageText}>Change</Text>

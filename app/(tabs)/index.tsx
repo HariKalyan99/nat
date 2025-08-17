@@ -8,12 +8,20 @@ import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
 import { useQuery } from "convex/react";
 import { useState } from "react";
-import { FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import {
+  FlatList,
+  RefreshControl,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { styles } from "../../styles/feed.styles";
 
 export default function Index() {
   const { signOut } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [activeVideoId, setActiveVideoId] = useState<string | null>(null);
 
   const posts = useQuery(api.posts.getFeedPosts);
 
@@ -40,7 +48,13 @@ export default function Index() {
 
       <FlatList
         data={posts}
-        renderItem={({ item }) => <Post post={item} />}
+        renderItem={({ item }) => (
+          <Post
+            post={item}
+            activeVideoId={activeVideoId}
+            setActiveVideoId={setActiveVideoId}
+          />
+        )}
         keyExtractor={(item) => item._id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 60 }}
@@ -56,7 +70,6 @@ export default function Index() {
     </View>
   );
 }
-
 
 const StoriesSection = () => {
   return (

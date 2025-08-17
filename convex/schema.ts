@@ -16,7 +16,7 @@ export default defineSchema({
 
   posts: defineTable({
     userId: v.id("users"),
-    imageUrl: v.string(),
+    videoUrl: v.string(),
     storageId: v.id("_storage"),
     caption: v.optional(v.string()),
     likes: v.number(),

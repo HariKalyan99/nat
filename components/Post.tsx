@@ -4,18 +4,20 @@ import { Id } from "@/convex/_generated/dataModel";
 import { styles } from "@/styles/feed.styles";
 import { useUser } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { useMutation, useQuery } from "convex/react";
 import { formatDistanceToNow } from "date-fns";
 import { Image } from "expo-image";
 import { Link } from "expo-router";
-import { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { useVideoPlayer, VideoView } from "expo-video";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pressable, Text, TouchableOpacity, View } from "react-native";
 import CommentsModal from "./CommentsModal";
 
 type PostProps = {
   post: {
     _id: Id<"posts">;
-    imageUrl: string;
+    videoUrl: string;
     caption: string;
     likes: number;
     comments: string;
@@ -28,28 +30,68 @@ type PostProps = {
       image: string;
     };
   };
+  activeVideoId: string | null;
+  setActiveVideoId: (id: string | null) => void;
 };
 
-export default function Post({ post }: PostProps) {
+export default function Post({
+  post,
+  activeVideoId,
+  setActiveVideoId,
+}: PostProps) {
+  const { user } = useUser();
   const [isLiked, setIsliked] = useState(post.isLiked);
   const [isBookmarked, setIsBookmarked] = useState(post.isBookmarked);
   const [showComments, setShowComments] = useState(false);
 
-  const { user } = useUser();
-
+  // Determine if this post is currently the active (unmuted) video
+  const isActive = activeVideoId === post._id;
+  const [muted, setMuted] = useState(!isActive);
+  const isPlayerReleased = useRef(false);
   const currentUser = useQuery(
     api.users.getUserByClerkId,
     user ? { clerkId: user?.id } : "skip"
   );
+
   const toggleBookmark = useMutation(api.bookmarks.toggleBookMark);
   const toggleLike = useMutation(api.posts.toggleLike);
-
   const deletePost = useMutation(api.posts.deletePost);
+
+  const player = useVideoPlayer(post.videoUrl ?? null, (p) => {
+    if (post.videoUrl) {
+      p.loop = true;
+      p.play();
+      p.muted = muted;
+    }
+  });
+
+  // Pause and cleanup video when leaving screen
+  useFocusEffect(
+    useCallback(() => {
+      return () => {
+        try {
+          if (player && !isPlayerReleased.current) {
+            player.pause?.();
+            player.replaceAsync?.(null);
+            isPlayerReleased.current = true; // mark as released
+          }
+        } catch (err) {
+          console.log("Cleanup video error (ignored):", err);
+        }
+      };
+    }, [player])
+  );
+
+  // Sync muted state with activeVideoId
+  useEffect(() => {
+    const shouldBeMuted = activeVideoId !== post._id;
+    if (player) player.muted = shouldBeMuted;
+    setMuted(shouldBeMuted);
+  }, [activeVideoId]);
 
   const handleLike = async () => {
     try {
       const newIsLiked = await toggleLike({ postId: post._id });
-
       setIsliked(newIsLiked);
     } catch (error) {
       console.log("Error toggling like: ", error);
@@ -71,6 +113,7 @@ export default function Post({ post }: PostProps) {
 
   return (
     <View style={styles.post}>
+      {/* Post Header */}
       <View style={styles.postHeader}>
         <Link
           href={
@@ -107,16 +150,47 @@ export default function Post({ post }: PostProps) {
         )}
       </View>
 
-      <Image
-        source={post.imageUrl}
-        style={styles.postImage}
-        contentFit="cover"
-        transition={200}
-        cachePolicy="memory-disk"
-      />
+      {/* Video */}
+      {post.videoUrl && (
+        <Pressable
+          style={styles.postImage}
+          onPress={() => {
+            if (activeVideoId === post._id) {
+              const newMuted = !muted;
+              setMuted(newMuted);
+              if (player) player.muted = newMuted;
+              if (!newMuted) setActiveVideoId(post._id);
+              else setActiveVideoId(null);
+            } else {
+              setActiveVideoId(post._id);
+              setMuted(false);
+              if (player) player.muted = false;
+            }
+          }}
+        >
+          {player ? (
+            <VideoView
+              style={{ width: "100%", height: "100%" }}
+              player={player}
+              allowsFullscreen
+              allowsPictureInPicture
+              nativeControls={false}
+              contentFit="cover"
+            />
+          ) : (
+            <Text style={{ color: "white" }}>Loading video...</Text>
+          )}
 
-      {/* post actions */}
+          <Ionicons
+            name={muted ? "volume-mute" : "volume-high"}
+            size={28}
+            color="white"
+            style={{ position: "absolute", bottom: 10, right: 10 }}
+          />
+        </Pressable>
+      )}
 
+      {/* Post Actions */}
       <View style={styles.postActions}>
         <View style={styles.postActionsLeft}>
           <TouchableOpacity onPress={handleLike}>
@@ -143,14 +217,14 @@ export default function Post({ post }: PostProps) {
         </TouchableOpacity>
       </View>
 
-      {/* post info */}
-
+      {/* Post Info */}
       <View style={styles.postInfo}>
         <Text style={styles.likesText}>
           {post?.likes > 0
             ? `${post?.likes.toLocaleString()} likes`
             : "Be the first to like"}
         </Text>
+
         {post.caption && (
           <View style={styles.captionContainer}>
             <Text style={styles.captionUsername}>{post.author.username}</Text>
@@ -158,7 +232,7 @@ export default function Post({ post }: PostProps) {
           </View>
         )}
 
-        {post.comments > 0 && (
+        {Number(post.comments) > 0 && (
           <TouchableOpacity onPress={() => setShowComments(true)}>
             <Text style={styles.commentText}>
               View all {post?.comments} comments

@@ -16,13 +16,13 @@ export const createPost = mutation({
 
   handler: async (ctx, args) => {
     const currentUser = await getAuthenticatedUser(ctx);
-    const imageUrl = await ctx.storage.getUrl(args.storageId);
+    const videoUrl = await ctx.storage.getUrl(args.storageId);
 
-    if (!imageUrl) throw new Error("Image not found");
+    if (!videoUrl) throw new Error("Image not found");
 
     const postId = await ctx.db.insert("posts", {
       userId: currentUser._id,
-      imageUrl,
+      videoUrl,
       storageId: args.storageId,
       caption: args.caption,
       likes: 0,
