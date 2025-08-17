@@ -6,112 +6,33 @@ import { COLORS } from "@/constants/theme";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@clerk/clerk-expo";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useConvex } from "convex/react";
-import { useEffect, useState } from "react";
-import {
-  FlatList,
-  RefreshControl,
-  ScrollView,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useQuery } from "convex/react";
+import { useState } from "react";
+import { FlatList, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { styles } from "../../styles/feed.styles";
 
 export default function Index() {
   const { signOut } = useAuth();
-  const convex = useConvex();
-
   const [refreshing, setRefreshing] = useState(false);
-  const [posts, setPosts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  const FEED_CACHE_KEY = "@feed_posts";
-  const FEED_TIMESTAMP_KEY = "@feed_posts_timestamp";
-  const CACHE_DURATION_MS = 60 * 60 * 1000; 
 
-  useEffect(() => {
-    loadPostsOnStartup();
-  }, []);
+  const posts = useQuery(api.posts.getFeedPosts);
 
-  useEffect(() => {
-    // Setup interval for auto-refresh every 1 hour
-    const interval = setInterval(async () => {
-      console.log("🔁 Auto-fetching feed after 1 hour...");
-
-      try {
-        const fresh = await convex.query(api.posts.getFeedPosts);
-        if (fresh) {
-          setPosts(fresh);
-          await AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(fresh));
-          await AsyncStorage.setItem(FEED_TIMESTAMP_KEY, Date.now().toString());
-          console.log("✅ Auto-refresh complete.");
-        }
-      } catch (err) {
-        console.error("Auto-refresh error:", err);
-      }
-    }, CACHE_DURATION_MS); // 1 hour
-
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, []);
-
-
-  const loadPostsOnStartup = async () => {
-    try {
-      const lastFetched = await AsyncStorage.getItem("@last_fetched_time");
-      const now = Date.now();
-      const ONE_HOUR = 60 * 60 * 1000;
-
-      if (lastFetched && now - parseInt(lastFetched) < ONE_HOUR) {
-        const cached = await AsyncStorage.getItem("@feed_posts");
-        if (cached) {
-          setPosts(JSON.parse(cached));
-        }
-        setLoading(false);
-        return;
-      }
-
-      // If no cache or older than 1 hour, fetch fresh
-      const fresh = await convex.query(api.posts.getFeedPosts);
-      if (fresh) {
-        setPosts(fresh);
-        await AsyncStorage.setItem("@feed_posts", JSON.stringify(fresh));
-        await AsyncStorage.setItem("@last_fetched_time", now.toString());
-      }
-      setLoading(false);
-    } catch (err) {
-      console.error("Error loading posts:", err);
-      setLoading(false);
-    }
-  };
-
-  const onRefresh = async () => {
-    setRefreshing(true);
-    try {
-      const fresh = await convex.query(api.posts.getFeedPosts);
-      if (fresh) {
-        setPosts(fresh);
-        await AsyncStorage.setItem(FEED_CACHE_KEY, JSON.stringify(fresh));
-        await AsyncStorage.setItem(FEED_TIMESTAMP_KEY, Date.now().toString());
-        console.log("Manually refreshed feed.");
-      }
-    } catch (err) {
-      console.error("Refresh error:", err);
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  if (loading) return <Loader />;
-
+  if (posts === undefined) return <Loader />;
   if (posts.length === 0) return <NoPostsFound />;
+
+  // this does nothing
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 2000);
+  };
 
   return (
     <View style={styles.container}>
-      {/* header */}
+      {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>nat</Text>
+        <Text style={styles.headerTitle}>spotlight</Text>
         <TouchableOpacity onPress={() => signOut()}>
           <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
         </TouchableOpacity>
@@ -127,7 +48,7 @@ export default function Index() {
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
-            // onRefresh={onRefresh}
+            onRefresh={onRefresh}
             tintColor={COLORS.primary}
           />
         }
@@ -135,6 +56,7 @@ export default function Index() {
     </View>
   );
 }
+
 
 const StoriesSection = () => {
   return (
